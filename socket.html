@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Socket.IO Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    #messages { list-style: none; padding: 0; border: 1px solid #ddd; border-radius: 6px; min-height: 200px; max-height: 400px; overflow-y: auto; }
+    #messages li { padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
+    #messages li:last-child { border-bottom: none; }
+    form { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    input { flex: 1; padding: 0.5rem; }
+    #status { font-weight: 600; }
+    .online  { color: #16a34a; }
+    .offline { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <h1>Socket.IO Demo</h1>
+  <p>
+    Status: <span id="status" class="offline">disconnected</span>
+    &nbsp;|&nbsp; Online users: <strong id="userCount">0</strong>
+  </p>
+
+  <ul id="messages"></ul>
+
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Type a message..." />
+    <button type="submit">Send</button>
+  </form>
+
+  <!-- Socket.IO server serves this file automatically at /socket.io/socket.io.js -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // io() with no args connects to the same origin/port as the page
+    const socket = io();
+
+    const statusEl   = document.getElementById('status');
+    const userCount  = document.getElementById('userCount');
+    const form       = document.getElementById('form');
+    const input      = document.getElementById('input');
+    const messagesEl = document.getElementById('messages');
+
+    // --- Connection lifecycle ---
+    socket.on('connect', () => {
+      statusEl.textContent = 'connected';
+      statusEl.className = 'online';
+      console.log('Connected with id:', socket.id);
+    });
+
+    socket.on('disconnect', (reason) => {
+      statusEl.textContent = `disconnected (${reason})`;
+      statusEl.className = 'offline';
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Connection error:', err.message);
+    });
+
+    // --- Custom events from the server ---
+    socket.on('userCount', (count) => {
+      userCount.textContent = count;
+    });
+
+    socket.on('message', ({ from, text, time }) => {
+      const li = document.createElement('li');
+      li.textContent = `[${new Date(time).toLocaleTimeString()}] ${from}: ${text}`;
+      messagesEl.appendChild(li);
+      messagesEl.scrollTop = messagesEl.scrollHeight; // auto-scroll
+    });
+
+    // --- Send a message ---
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      socket.emit('message', { from: 'Anonymous', text });
+      input.value = '';
+      input.focus();
+    });
+  </script>
+</body>
+</html>
