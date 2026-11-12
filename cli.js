@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { parseArgs } from "node:util";
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-import path from "node:path";
+const { parseArgs } = require("node:util");
+const { spawn } = require("node:child_process");
+const { mkdirSync, writeFileSync, existsSync } = require("node:fs");
+const path = require("node:path");
 
 const c = {
   green: (s) => `\x1b[32m${s}\x1b[0m`,
@@ -97,6 +97,46 @@ app.listen(PORT, () => {
 });
 `;
 
+const userTypeDef = `import {ObjectId} from "mongodb"
+export type User = {
+  _id: ObjectId;
+  name: string;
+  email: string;
+  phone: string;
+  address: {
+    street: string;
+    zip: string;
+    province: string;
+    city: string;
+    country: string
+  }
+  avatar: string
+  role: "USER" | "ADMIN"
+  createdAt: string;
+  updatedAt: string
+}`
+
+const userSchemaDef = `import {Schema} from 'mongoose';
+import {User} from '../../types/user.types.ts';
+
+const AddressSchema = new Schema({
+  street: String,
+  zip: String,
+  province: String,
+  city: String,
+  country: String
+})
+
+export const UserSchema = new Schema<User>({
+  name: {type: String, required: true},
+  email: {type: String, required: true, unique: true}
+  phone: {type: String, required: true},
+  address: AddressSchema,
+  avatar: String,
+  role: {type: String, default: "USER" }
+}) 
+`
+
 // ---------- helpers ----------
 
 function run(cmd, args, cwd) {
@@ -152,13 +192,19 @@ async function main() {
 
   console.log(`\nCreating ${c.bold(name)} ...`);
   mkdirSync(path.join(targetDir, "src"), { recursive: true });
+  mkdirSync(path.join(targetDir, "src/types"), { recursive: true });
+  mkdirSync(path.join(targetDir, "src/data/schemas"), { recursive: true });
 
   const files = {
     "package.json": pkgJson(name),
     "tsconfig.json": tsconfigJson,
     ".gitignore": gitignore,
+    "src/types/user.types.ts": userTypeDef,
+    "src/data/schemas/user.schema.ts": userSchemaDef,
     "src/index.ts": indexTs,
   };
+
+  console.log("target directory", targetDir)
 
   for (const [rel, content] of Object.entries(files)) {
     writeFileSync(path.join(targetDir, rel), content);
